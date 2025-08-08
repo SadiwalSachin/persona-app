@@ -3,13 +3,14 @@ import { Button } from "@/components/ui/button";
 import { MessageCircle } from "lucide-react";
 import {
   SignInButton,
-  SignUpButton,
-  SignedIn,
   SignedOut,
-  UserButton,
+  useUser,
 } from "@clerk/nextjs";
+import Link from "next/link";
 
 const Navbar = () => {
+  const { isSignedIn } = useUser();
+
   return (
     <header className="border-b bg-white/80 backdrop-blur-sm">
       <div className="container mx-auto px-4 py-4 flex justify-between items-center">
@@ -23,9 +24,13 @@ const Navbar = () => {
               <SignInButton />
             </Button>
           </SignedOut>
-          <SignedIn>
-            <UserButton>Profile</UserButton>
-          </SignedIn>
+          {isSignedIn && (
+            <Link href="/profile">
+              <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
+                Profile
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
     </header>

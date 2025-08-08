@@ -16,6 +16,7 @@ import { ArrowLeft, MessageCircle, Calendar, User } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import axios from "axios";
+import PersonaProfileSkeleton from "@/components/PersonaProfileSkeleton";
 
 
 interface Persona {
@@ -29,7 +30,9 @@ interface Persona {
     question: string
     answer: string
   }[]
-  avatar?: string
+  avatar?: string,
+  creatorName:string,
+  createdBy:string
 }
 
 export default function PersonaDetailPage() {
@@ -58,19 +61,7 @@ export default function PersonaDetailPage() {
 
   if (!persona) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardContent className="text-center py-8">
-            <h2 className="text-xl font-semibold mb-2">Persona Not Found</h2>
-            <p className="text-gray-600 mb-4">
-              The persona you're looking for doesn't exist.
-            </p>
-            <Link href="/">
-              <Button>Back to Home</Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
+      <PersonaProfileSkeleton/>
     );
   }
 
@@ -123,7 +114,7 @@ export default function PersonaDetailPage() {
                     <Badge variant="outline">{persona.accent} Accent</Badge>
                     <Badge variant="outline" className="flex items-center">
                       <Calendar className="mr-1 h-3 w-3" />
-                      Created {persona.createdAt}
+                      Created by {persona?.creatorName} 
                     </Badge>
                   </div>
 
@@ -159,7 +150,7 @@ export default function PersonaDetailPage() {
               ) : (
                 <div className="space-y-6">
                   {persona.questions.map((qa, index) => (
-                    <div key={qa.id}>
+                    <div key={index}>
                       <div className="space-y-4">
                         <div className="bg-blue-50 p-4 rounded-lg">
                           <p className="font-medium text-blue-900 mb-1">

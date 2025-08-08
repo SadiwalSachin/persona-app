@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Persona } from "@/models/persona.model";
 import dbConnection from "@/lib/dbConnect";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 
 interface PersonaType {
   accent: string;
@@ -18,13 +19,31 @@ interface PersonaType {
 
 export async function POST(request: NextRequest) {
   try {
+    await dbConnection();
 
-    await dbConnection()
+    const authObject = await auth();
+
+    const userClient = await clerkClient();
+
+    console.log("auth object", authObject);
+
+    if (!authObject?.userId) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized User" },
+        { status: 401 }
+      );
+    }
+
+    const user = await userClient.users.getUser(authObject?.userId!);
+
+    const creatorName =
+      user.fullName || `${user.firstName || ""} ${user.lastName || ""}`.trim();
+    console.log("user", user);
 
     const { accent, description, name, occupation, questions }: PersonaType =
       await request.json();
 
-      console.log(accent, description, name, occupation, questions);
+    console.log(accent, description, name, occupation, questions);
 
     if (
       !accent ||
@@ -49,6 +68,8 @@ export async function POST(request: NextRequest) {
       name,
       occupation,
       questions,
+      createdBy: authObject?.userId?.toString(),
+      creatorName:creatorName || "Unknown user"
     });
 
     return NextResponse.json(

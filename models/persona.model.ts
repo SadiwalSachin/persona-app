@@ -6,7 +6,8 @@ export interface Persona extends Document {
   description: string;
   occupation: string;
   questions: [{ question: string; answer: string }];
-  createdBy?: mongoose.Types.ObjectId;
+  createdBy: string;
+  creatorName:string
 }
 
 const personaSchema = new Schema<Persona>({
@@ -34,9 +35,13 @@ const personaSchema = new Schema<Persona>({
     },
   ],
   createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
+    type: String,
+    required:true
   },
+  creatorName:{
+    type:String,
+    required:true
+  }
 });
 
 export const Persona =

@@ -10,6 +10,7 @@ import { ArrowLeft, Send, User } from "lucide-react";
 import Link from "next/link";
 import axios from "axios";
 import { getMessage } from "@/lib/getResponseFromAi";
+import ChatShimmer from "@/components/ChatComponentSkeleton";
 
 interface Message {
   id: string;
@@ -109,19 +110,7 @@ export default function ChatPage() {
 
   if (!persona) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardContent className="text-center py-8">
-            <h2 className="text-xl font-semibold mb-2">Persona Not Found</h2>
-            <p className="text-gray-600 mb-4">
-              The persona you're trying to chat with doesn't exist.
-            </p>
-            <Link href="/">
-              <Button>Back to Home</Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
+     <ChatShimmer/>
     );
   }
 
