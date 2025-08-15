@@ -1,29 +1,18 @@
 import { GoogleGenAI } from "@google/genai";
-
-console.log(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
-
+import axios from "axios";
+import { Persona } from "@/types/persona";
+import { Message } from "@/types/message";
 
 const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY });
 
-interface Persona {
-  name: string;
-  occupation: string;
-  description: string;
-  _id: string;
-  accent: string;
-  createdAt: string;
-  questions: {
-    question: string;
-    answer: string;
-  }[];
-  avatar?: string;
-}
-
-
-export async function getMessage(userMessage: string,personaDetails:Persona) {
+export async function getMessage(
+  userMessage: string,
+  personaDetails: Persona,
+  historyMessage: Message[]
+) {
   try {
-
-    console.log("details aayi",personaDetails);
+    console.log("details aayi", personaDetails);
+    console.log("history of the user", historyMessage);
 
     const PROMPT = `
         You are ai assisatant who plays the role of ${personaDetails.name}
@@ -33,12 +22,30 @@ export async function getMessage(userMessage: string,personaDetails:Persona) {
           Description: ${personaDetails.description}
           Accent of Talking : ${personaDetails.accent}
 
+
+        user history :
+          ${
+            historyMessage.length &&
+            historyMessage.map((message) => {
+              return {
+                role: message.sender,
+                answer: message.content,
+              };
+            })
+          }  
+
+        Rules :
+          1 : Never answer directly to the user first understand what user wants to talk
+          2 : Analyze what user want to talk what he wanted to share 
+          3 : Never reply based on only accent use accent but gradually never reply directly accent and description in the user 
+          4 : Use accent in the talk gradually as user uses  
+
         Example how he talks 
-          ${personaDetails.questions.forEach((question) =>{
+          ${personaDetails.questions.forEach((question) => {
             return {
-              input:question.question,
-              answer:question.answer
-            }
+              input: question.question,
+              answer: question.answer,
+            };
           })}
     `;
 
@@ -58,6 +65,13 @@ export async function getMessage(userMessage: string,personaDetails:Persona) {
 
     const text = response.text;
     console.log(text);
+
+    await axios.post("/api/chat/create", {
+      content: text,
+      personaId: personaDetails._id,
+      sender: "persona",
+    });
+
     return text;
   } catch (error) {
     console.error("Error generating content:", error);

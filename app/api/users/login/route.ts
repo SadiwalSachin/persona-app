@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
 
     const isPassowrdCorrect = await bcrypt.compare(
       password,
-      isUserExist.password
+      ""
     );
 
     if (!isPassowrdCorrect) {

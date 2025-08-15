@@ -25,8 +25,6 @@ export async function POST(request: NextRequest) {
 
     const userClient = await clerkClient();
 
-    console.log("auth object", authObject);
-
     if (!authObject?.userId) {
       return NextResponse.json(
         { success: false, message: "Unauthorized User" },
@@ -42,8 +40,6 @@ export async function POST(request: NextRequest) {
 
     const { accent, description, name, occupation, questions }: PersonaType =
       await request.json();
-
-    console.log(accent, description, name, occupation, questions);
 
     if (
       !accent ||
@@ -81,7 +77,6 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Error creating persona:", error);
     return NextResponse.json(
       { success: false, message: "Internal server error" },
       { status: 500 }

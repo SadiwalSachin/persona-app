@@ -8,7 +8,6 @@ export async function GET(request:NextRequest,
   try {
     await dbConnection();
     const  {id}  = params;
-    console.log("id aa gayii",id);
     
     if (!id) {
       return NextResponse.json(

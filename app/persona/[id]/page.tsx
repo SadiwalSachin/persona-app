@@ -17,23 +17,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import PersonaProfileSkeleton from "@/components/PersonaProfileSkeleton";
-
-
-interface Persona {
-  name: string
-  occupation: string
-  description: string
-  _id: string
-  accent: string
-  createdAt: string
-  questions: {
-    question: string
-    answer: string
-  }[]
-  avatar?: string,
-  creatorName:string,
-  createdBy:string
-}
+import { Persona } from "@/types/persona";
 
 export default function PersonaDetailPage() {
   const {id} = useParams()

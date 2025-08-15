@@ -11,27 +11,8 @@ import Link from "next/link";
 import axios from "axios";
 import { getMessage } from "@/lib/getResponseFromAi";
 import ChatShimmer from "@/components/ChatComponentSkeleton";
-
-interface Message {
-  id: string;
-  content: string;
-  sender: "user" | "persona";
-  timestamp: Date;
-}
-
-interface Persona {
-  name: string;
-  occupation: string;
-  description: string;
-  _id: string;
-  accent: string;
-  createdAt: string;
-  questions: {
-    question: string;
-    answer: string;
-  }[];
-  avatar?: string;
-}
+import { Persona } from "@/types/persona";
+import { Message } from "@/types/message";
 
 export default function ChatPage() {
   const { id } = useParams();
@@ -49,7 +30,6 @@ export default function ChatPage() {
     async function getPersona() {
       try {
         const response = await axios.get(`/api/persona/${id}`);
-        console.log(response);
         if (response.data.success) {
           setPersona(response.data.data);
         }
@@ -67,51 +47,71 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (persona) {
-      // Add welcome message
       const welcomeMessage: Message = {
-        id: "1",
-        content: `Hello! I'm ${persona.name}. ${persona.description} What would you like to talk about?`,
+        _id: "1",
+        content: `Hello! I'm ${persona.name}. What would you like to talk about?`,
         sender: "persona",
-        timestamp: new Date(),
+        createdAt: new Date(),
+        personaId: "",
+        userId: "",
       };
       setMessages([welcomeMessage]);
     }
+
+    async function getAllMessages() {
+      try {
+        const response = await axios.get(`/api/chat/get?personaId=${id}`);
+        if (response?.data?.success) {
+          setMessages((prev) => [...prev, ...response.data.data]);
+        }
+        console.log(response);
+      } catch (error) {
+        console.log(error);
+      }
+    }
+
+    getAllMessages();
   }, [persona]);
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || !persona) return;
 
+    await axios.post("/api/chat/create", {
+      content: inputValue,
+      personaId: id,
+      sender: "user",
+    });
+
     const userMessage: Message = {
-      id: Date.now().toString(),
+      _id: Date.now().toString(),
       content: inputValue,
       sender: "user",
-      timestamp: new Date(),
+      createdAt: new Date(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
     setInputValue("");
+    const historyMessage = messages.slice(-15);
 
     console.log(persona);
 
-    const response = await getMessage(inputValue,persona);
+    const response = await getMessage(inputValue, persona, historyMessage);
     console.log(response);
     if (typeof response === "string") {
       setMessages((prev) => [
         ...prev,
         {
-          id: Date.now().toString(),
+          _id: Date.now().toString(),
           content: response,
           sender: "persona",
-          timestamp: new Date(),
+          createdAt: new Date(),
         },
       ]);
     }
   };
 
   if (!persona) {
-    return (
-     <ChatShimmer/>
-    );
+    return <ChatShimmer />;
   }
 
   return (
@@ -137,8 +137,7 @@ export default function ChatPage() {
             </AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="font-semibold">{persona.name}</h1>
-            <p className="text-sm text-gray-500">{persona.occupation}</p>
+            <h1 className="font-semibold text-white">{persona.name}</h1>
           </div>
         </div>
       </header>
@@ -147,7 +146,7 @@ export default function ChatPage() {
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message) => (
           <div
-            key={message.id}
+            key={message._id}
             className={`flex ${
               message.sender === "user" ? "justify-end" : "justify-start"
             }`}
@@ -194,10 +193,10 @@ export default function ChatPage() {
                       : "text-gray-500"
                   }`}
                 >
-                  {message.timestamp.toLocaleTimeString([], {
+                  {/* {message.timestamp.toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",
-                  })}
+                  })} */}
                 </p>
               </div>
             </div>
@@ -213,8 +212,7 @@ export default function ChatPage() {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             placeholder={`Message ${persona.name}...`}
-            onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-            className="flex-1"
+            className="flex-1 text-white"
           />
           <Button onClick={handleSendMessage} disabled={!inputValue.trim()}>
             <Send className="h-4 w-4" />

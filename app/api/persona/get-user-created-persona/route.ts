@@ -9,7 +9,6 @@ export async function GET() {
   try {
     const { userId } = await auth();
 
-    console.log(userId);
 
     if (!userId) {
       console.log("User id not found");
@@ -19,7 +18,7 @@ export async function GET() {
         { status: 401 }
       );
     }
-    // Find personas created by this user
+    
     const personas = await Persona.find({ createdBy: userId });
 
     if (!personas || personas.length === 0) {
