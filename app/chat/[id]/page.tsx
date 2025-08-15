@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,99 +18,156 @@ export default function ChatPage() {
   const { id } = useParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
+  const [persona, setPersona] = useState<Persona | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasInitialized, setHasInitialized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  }, []);
 
-  const [persona, setPersona] = useState<Persona | null>(null);
-
+  // Fetch persona data
   useEffect(() => {
+    let isMounted = true;
+
     async function getPersona() {
       try {
+        setIsLoading(true);
         const response = await axios.get(`/api/persona/${id}`);
-        if (response.data.success) {
+        if (response.data.success && isMounted) {
           setPersona(response.data.data);
         }
       } catch (error) {
         console.error("Failed to fetch persona", error);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     }
 
-    getPersona();
+    if (id) {
+      getPersona();
+    }
+
+    return () => {
+      isMounted = false;
+    };
   }, [id]);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  // Get all messages
+  const getAllMessages = useCallback(async () => {
+    if (!id) return;
+    
+    try {
+      const response = await axios.get(`/api/chat/get?personaId=${id}`);
+      if (response?.data?.success) {
+        setMessages(response.data.data);
+      }
+      console.log(response);
+    } catch (error) {
+      console.log(error);
+    }
+  }, [id]);
 
+  // Initialize messages when persona is loaded
   useEffect(() => {
-    if (persona) {
+    if (persona && !hasInitialized) {
       const welcomeMessage: Message = {
-        _id: "1",
+        _id: "welcome",
         content: `Hello! I'm ${persona.name}. What would you like to talk about?`,
         sender: "persona",
         createdAt: new Date(),
-        personaId: "",
+        personaId: persona._id || "",
         userId: "",
       };
-      setMessages([welcomeMessage]);
+
+      // Get existing messages and add welcome message if no messages exist
+      getAllMessages().then(() => {
+        setMessages(prevMessages => {
+          if (prevMessages.length === 0) {
+            return [welcomeMessage];
+          }
+          return prevMessages;
+        });
+      });
+
+      setHasInitialized(true);
     }
+  }, [persona, hasInitialized, getAllMessages]);
 
-    async function getAllMessages() {
-      try {
-        const response = await axios.get(`/api/chat/get?personaId=${id}`);
-        if (response?.data?.success) {
-          setMessages((prev) => [...prev, ...response.data.data]);
-        }
-        console.log(response);
-      } catch (error) {
-        console.log(error);
-      }
-    }
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
 
-    getAllMessages();
-  }, [persona]);
-
-  const handleSendMessage = async () => {
+  const handleSendMessage = useCallback(async () => {
     if (!inputValue.trim() || !persona) return;
-
-    await axios.post("/api/chat/create", {
-      content: inputValue,
-      personaId: id,
-      sender: "user",
-    });
 
     const userMessage: Message = {
       _id: Date.now().toString(),
       content: inputValue,
       sender: "user",
       createdAt: new Date(),
+      personaId: persona._id || "",
+      userId: "",
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    // Add user message immediately
+    setMessages(prev => [...prev, userMessage]);
+    const currentInput = inputValue;
     setInputValue("");
-    const historyMessage = messages.slice(-15);
 
-    console.log(persona);
+    try {
+      // Save user message to database
+      await axios.post("/api/chat/create", {
+        content: currentInput,
+        personaId: id,
+        sender: "user",
+      });
 
-    const response = await getMessage(inputValue, persona, historyMessage);
-    console.log(response);
-    if (typeof response === "string") {
-      setMessages((prev) => [
-        ...prev,
-        {
-          _id: Date.now().toString(),
+      // Get AI response
+      const historyMessage = messages.slice(-15);
+      const response = await getMessage(currentInput, persona, historyMessage);
+      
+      console.log(response);
+      
+      if (typeof response === "string") {
+        const aiMessage: Message = {
+          _id: (Date.now() + 1).toString(),
           content: response,
           sender: "persona",
           createdAt: new Date(),
-        },
-      ]);
-    }
-  };
+          personaId: persona._id || "",
+          userId: "",
+        };
 
-  if (!persona) {
+        setMessages(prev => [...prev, aiMessage]);
+
+        // Save AI message to database
+        await axios.post("/api/chat/create", {
+          content: response,
+          personaId: id,
+          sender: "persona",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to send message:", error);
+      // Optionally remove the user message if API call failed
+      setMessages(prev => prev.filter(msg => msg._id !== userMessage._id));
+      setInputValue(currentInput); // Restore input value
+    }
+  }, [inputValue, persona, messages, id]);
+
+  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  }, [handleSendMessage]);
+
+  if (isLoading || !persona) {
     return <ChatShimmer />;
   }
 
@@ -193,10 +250,16 @@ export default function ChatPage() {
                       : "text-gray-500"
                   }`}
                 >
-                  {/* {message.timestamp.toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })} */}
+                  {message.createdAt instanceof Date 
+                    ? message.createdAt.toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : new Date(message.createdAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                  }
                 </p>
               </div>
             </div>
@@ -211,6 +274,7 @@ export default function ChatPage() {
           <Input
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
+            onKeyPress={handleKeyPress}
             placeholder={`Message ${persona.name}...`}
             className="flex-1 text-white"
           />
