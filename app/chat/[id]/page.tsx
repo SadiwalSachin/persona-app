@@ -172,7 +172,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-900 flex flex-col">
+    <div className="bg-zinc-900 flex flex-col">
       {/* Header */}
       <header className="border-b bg-zinc-700 px-4 py-3">
         <div className="flex items-center space-x-4">
